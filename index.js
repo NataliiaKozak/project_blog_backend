@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import multer from 'multer';
 import {
   registerValidation,
   loginValidation,
@@ -27,24 +28,43 @@ mongoose
 
 const app = express();
 
+//хранилище
+const storage = multer.diskStorage({
+  destination: (_, _, cb) => {
+    cb(null, 'uploads'); //функция обьясняет, какой использовать путь
+  },
+  filename: (_, file, cb) => {
+    cb(null, file.originalname); //брать оригинальное название файла
+  },
+});
+
+const upload = multer({ storage });
+
 app.use(express.json());
 
 app.post('/auth/login', loginValidation, UserController.login);
 app.post('/auth/register', registerValidation, UserController.register);
 app.get('/auth/me', checkAuth, UserController.getMe);
 
+app.post('/upload', upload.single('image'), (req, res) => {
+  res.json({
+    url: `/uploads/${req.file.originalname}`,
+  });
+});
+//upload.single('image') - middleware
+
 app.get('/posts', PostController.getAll);
 app.get('/posts/:id', PostController.getOne);
 app.post('/posts', checkAuth, postCreateValidation, PostController.create);
-// app.delete('/posts', PostController.remote);
-// app.patch('/posts', PostController.update);
+app.delete('/posts/:id', checkAuth, PostController.remote);
+app.patch('/posts/:id', checkAuth, PostController.update);
 
 app.listen(PORT, (err) => {
   if (err) {
     return console.log(err);
   }
 
-  console.log('Server OK on port ${PORT}');
+  console.log('Server OK');
 });
 
 // Логирует метод/путь/Content-Type
