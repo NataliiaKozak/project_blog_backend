@@ -24,7 +24,11 @@ export const create = async (req, res) => {
 //get all posts
 export const getAll = async (req, res) => {
   try {
-    const post = await PostModel.find().populate('user').exec();
+    // const post = await PostModel.find().populate('user').exec();
+    const post = await PostModel.find().populate({
+      path: 'user',
+      select: ['fullName', 'avatarUrl'],
+    }); //как передать туда только то что нужно, а не всю инфу из БД про всех авторов статей, включая email, хеши паролей, дату регистрации
     res.json(post);
   } catch (error) {
     console.log(error);

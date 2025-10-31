@@ -7,9 +7,8 @@ import {
   loginValidation,
   postCreateValidation,
 } from './validations.js';
-import checkAuth from './utils/checkAuth.js';
-import * as UserController from './controllers/UserController.js';
-import * as PostController from './controllers/PostController.js';
+import {UserController, PostController}  from './controllers/index.js';
+import {handleValidationErrors, checkAuth} from './utils/index.js';
 
 dotenv.config();
 
@@ -30,9 +29,13 @@ const app = express();
 
 //хранилище
 const storage = multer.diskStorage({
-  destination: (_, _, cb) => {
-    cb(null, 'uploads'); //функция обьясняет, какой использовать путь
+  // destination: (_, _, cb) => {
+  //   cb(null, 'uploads'); //функция обьясняет, какой использовать путь
+  // },
+  destination: (_req, _file, cb) => {
+    cb(null, 'uploads');
   },
+
   filename: (_, file, cb) => {
     cb(null, file.originalname); //брать оригинальное название файла
   },
@@ -41,9 +44,20 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use(express.json());
+app.use('/uploads', express.static('uploads')); //есть ли в этой папке то, что передается/ get-запрос на получение статичного файла
 
-app.post('/auth/login', loginValidation, UserController.login);
-app.post('/auth/register', registerValidation, UserController.register);
+app.post(
+  '/auth/login',
+  loginValidation,
+  handleValidationErrors,
+  UserController.login
+); //если есть валидационные ошибки, то парсим их
+app.post(
+  '/auth/register',
+  registerValidation,
+  handleValidationErrors,
+  UserController.register
+);
 app.get('/auth/me', checkAuth, UserController.getMe);
 
 app.post('/upload', upload.single('image'), (req, res) => {
@@ -51,13 +65,35 @@ app.post('/upload', upload.single('image'), (req, res) => {
     url: `/uploads/${req.file.originalname}`,
   });
 });
+//из комментариев
+// app.post('/upload', checkAuth, upload.single('image'), (req, res) =>{
+//     res.json({
+//     url: ('/uploads/' + req.file.originalname),
+
 //upload.single('image') - middleware
+//проверка
+// app.post('/upload', upload.single('image'), (req, res) => {
+//   if (!req.file) return res.status(400).json({ message: 'Файл не загружен' });
+//   res.json({ url: `/uploads/${req.file.originalname}` });
+// });
 
 app.get('/posts', PostController.getAll);
 app.get('/posts/:id', PostController.getOne);
-app.post('/posts', checkAuth, postCreateValidation, PostController.create);
+app.post(
+  '/posts',
+  checkAuth,
+  postCreateValidation,
+  handleValidationErrors,
+  PostController.create
+);
 app.delete('/posts/:id', checkAuth, PostController.remote);
-app.patch('/posts/:id', checkAuth, PostController.update);
+app.patch(
+  '/posts/:id',
+  checkAuth,
+  postCreateValidation,
+  handleValidationErrors,
+  PostController.update
+);
 
 app.listen(PORT, (err) => {
   if (err) {
